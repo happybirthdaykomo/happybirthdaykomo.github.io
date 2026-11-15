@@ -313,7 +313,24 @@
     if (musicBtn.classList.contains('show')) applyMusic(scenes[cur].id);
     const hook = enter[scenes[cur].id];
     if (hook) hook();
+    armNudge();
   }
+
+  // If she lingers without tapping, make the next button bounce with a "there's more" bubble
+  let nudgeTimer = null;
+  function armNudge() {
+    clearTimeout(nudgeTimer);
+    $$('.next.nudge').forEach((b) => b.classList.remove('nudge'));
+    const btn = scenes[cur].querySelector('[data-next]');
+    if (!btn) return; // first & last screens have no next button
+    nudgeTimer = setTimeout(() => {
+      if (btn.hidden) armNudge(); // e.g. candles still lit: check again later
+      else btn.classList.add('nudge');
+    }, 5000);
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('[data-next]')) armNudge(); // any tap restarts the wait
+  });
   try { history.replaceState({ s: 0 }, ''); } catch (_) {}
   window.addEventListener('popstate', (e) => {
     const s = e.state && typeof e.state.s === 'number' ? e.state.s : 0;
