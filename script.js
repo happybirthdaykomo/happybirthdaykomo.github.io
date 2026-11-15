@@ -227,6 +227,43 @@
     } else if (!songBus) playSong();
   }
 
+  /* --- Background preloading ---
+     The first screen shows instantly; while she plays with the box, balloons and cake,
+     everything else downloads quietly, one item at a time, in the order she'll need it.
+     Songs are fetched whole into memory so they start instantly (iPhone won't preload audio). */
+  const PHOTO_COUNT = 15;
+  const photoSrc = (n) => `photos/komo-${String(n).padStart(2, '0')}.jpg`;
+  const preloaded = [];
+  function preloadImage(src) {
+    return new Promise((done) => {
+      const im = new Image();
+      im.onload = im.onerror = () => done();
+      im.src = src;
+      preloaded.push(im); // keep a reference so it stays decoded/cached
+    });
+  }
+  async function preloadSong(s) {
+    try {
+      const res = await fetch(s.file);
+      if (!res.ok) throw new Error(res.status);
+      const url = URL.createObjectURL(await res.blob());
+      if (!s.el.src) s.el.src = url; // not started yet: play from memory
+    } catch (_) { /* fine: it will stream from the network when its screen opens */ }
+  }
+  async function preloadAll() {
+    const steps = [
+      () => Promise.all([1, 2, 3].map((n) => preloadImage(photoSrc(n)))),
+      () => preloadSong(songs.photos),
+    ];
+    for (let n = 4; n <= PHOTO_COUNT; n++) steps.push(() => preloadImage(photoSrc(n)));
+    steps.push(() => preloadSong(songs.finale));
+    for (const step of steps) await step();
+  }
+  if (location.protocol !== 'file:') {
+    if (document.readyState === 'complete') setTimeout(preloadAll, 300);
+    else window.addEventListener('load', () => setTimeout(preloadAll, 300));
+  }
+
   const musicBtn = $('#musicBtn');
   function setMusic(on) {
     musicOn = on;
@@ -531,7 +568,7 @@
       card.className = 'card';
       card._rot = rand(-7, 7);
       const src = `photos/komo-${n}.jpg`;
-      card.innerHTML = `<div class="ph" style="--bg:url('${src}')"><img src="${src}" alt="Komo photo ${idx + 1}" loading="${idx < 3 ? 'eager' : 'lazy'}" draggable="false"></div><p class="cap">${en}</p>`;
+      card.innerHTML = `<div class="ph" style="--bg:url('${src}')"><img src="${src}" alt="Komo photo ${idx + 1}" loading="eager" draggable="false"></div><p class="cap">${en}</p>`;
       const img = card.querySelector('img');
       // where to anchor the crop (x% y%): faces sit high in most photos
       const FOCUS = { 13: '50% 0%' };
