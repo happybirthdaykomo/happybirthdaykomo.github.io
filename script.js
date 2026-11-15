@@ -50,7 +50,7 @@
     for (let i = 0; i < n; i++) {
       const a = rand(0, Math.PI * 2), s = rand(2, 6);
       parts.push({
-        kind: 'emoji', ch: pick(['💖', '💕', '✨', '🌸', '💗']), x, y,
+        kind: 'emoji', ch: pick(['✨', '🌟', '💫', '🎉', '🎊', '🌸', '⭐', '✨']), x, y,
         vx: Math.cos(a) * s, vy: Math.sin(a) * s - 3, size: rand(16, 26), life: rand(60, 90), age: 0,
       });
     }
@@ -157,68 +157,74 @@
     if (songBus) { songBus.disconnect(); songBus = null; }
   }
 
-  /* --- Song for the photos screen (music/photos-song.mp3) ---
-     Routed through Web Audio so it can fade in/out (iPhone ignores audio.volume). */
-  const PHOTO_SONG = 'music/photos-song.mp3';
-  const photoAudio = new Audio();
-  photoAudio.loop = true;
-  photoAudio.preload = 'none';
-  photoAudio.setAttribute('playsinline', '');
-  let photoGain = null, photoOk = true, photoFadeTimer = null;
-  photoAudio.addEventListener('error', () => {
-    photoOk = false; // missing/broken file: fall back to the birthday tune
-    photoAudio.pause();
-    if (track === 'photos' && musicOn) { track = 'bday'; playSong(); }
-  });
-  function photoNode() {
-    if (!photoGain && audio()) {
-      if (!photoAudio.src) photoAudio.src = PHOTO_SONG;
-      const src = AC.createMediaElementSource(photoAudio);
-      photoGain = AC.createGain(); photoGain.gain.value = 0;
-      src.connect(photoGain); photoGain.connect(master);
-    }
-    return photoGain;
+  /* --- Real songs for some screens ---
+     Each is routed through Web Audio so it can fade in/out (iPhone ignores audio.volume).
+     A missing/broken file just falls back to the birthday tune. */
+  const SONG_FILES = {
+    photos: 'music/photos-song.mp3',  // Nadaaniyan
+    finale: 'music/finale-song.mp3',  // Gallan Goodiyaan
+  };
+  // which song + volume each screen wants; screens not listed use the music-box tune
+  const SCENE_MUSIC = {
+    's-photos': ['photos', .9],
+    's-letter': ['photos', .15], // same song, soft, while the letter is written
+    's-final':  ['finale', .9],
+  };
+  const songs = {};
+  for (const [name, file] of Object.entries(SONG_FILES)) {
+    const el = new Audio();
+    el.loop = true; el.preload = 'none'; el.setAttribute('playsinline', '');
+    const s = songs[name] = { name, file, el, gain: null, ok: true, timer: null };
+    el.addEventListener('error', () => {
+      s.ok = false; el.pause();
+      if (track === name && musicOn) { track = 'bday'; playSong(); }
+    });
   }
-  function fadePhoto(to, secs) {
-    if (!photoGain) return;
-    const g = photoGain.gain, t = AC.currentTime;
+  function songNode(s) {
+    if (!s.gain && audio()) {
+      if (!s.el.src) s.el.src = s.file;
+      const src = AC.createMediaElementSource(s.el);
+      s.gain = AC.createGain(); s.gain.gain.value = 0;
+      src.connect(s.gain); s.gain.connect(master);
+    }
+    return s.gain;
+  }
+  function fadeSong(s, to, secs) {
+    if (!s.gain) return;
+    const g = s.gain.gain, t = AC.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(to, t + secs);
   }
-  function startPhotoSong(level) {
-    if (!photoOk || !photoNode()) return false;
-    clearTimeout(photoFadeTimer);
-    if (photoAudio.paused) {
-      const p = photoAudio.play();
-      if (p && p.catch) p.catch(() => { if (track === 'photos' && musicOn) { track = 'bday'; playSong(); } });
+  function startSong(s, level) {
+    if (!s.ok || !songNode(s)) return false;
+    clearTimeout(s.timer);
+    if (s.el.paused) {
+      const p = s.el.play();
+      if (p && p.catch) p.catch(() => { if (track === s.name && musicOn) { track = 'bday'; playSong(); } });
     }
-    fadePhoto(level, 1.5); // already playing? just glide to the new volume
+    fadeSong(s, level, 1.5); // already playing? just glide to the new volume
     return true;
   }
-  function stopPhotoSong() {
-    if (!photoGain || photoAudio.paused) return;
-    fadePhoto(0, .8);
-    clearTimeout(photoFadeTimer);
-    photoFadeTimer = setTimeout(() => photoAudio.pause(), 850); // keeps its place for next visit
+  function stopSong(s) {
+    if (!s.gain || s.el.paused) return;
+    fadeSong(s, 0, .8);
+    clearTimeout(s.timer);
+    s.timer = setTimeout(() => s.el.pause(), 850); // keeps its place for next visit
   }
 
   // pick the right music for a screen; called on every screen change and on mute/unmute
-  // song volume per screen: full on photos, soft background while the letter is written
-  const SONG_LEVEL = { 's-photos': .9, 's-letter': .15 };
   let songLevel = .9;
   function applyMusic(sceneId) {
     if (sceneId) {
-      const lvl = SONG_LEVEL[sceneId];
-      track = (lvl && photoOk) ? 'photos' : 'bday';
-      if (lvl) songLevel = lvl;
+      const want = SCENE_MUSIC[sceneId];
+      track = (want && songs[want[0]].ok) ? want[0] : 'bday';
+      if (want) songLevel = want[1];
     }
-    if (!musicOn) { stopBday(); stopPhotoSong(); return; }
-    if (track === 'photos') {
+    for (const s of Object.values(songs)) if (s.name !== track || !musicOn) stopSong(s);
+    if (!musicOn) { stopBday(); return; }
+    if (track !== 'bday') {
       stopBday();
-      if (!startPhotoSong(songLevel)) { track = 'bday'; playSong(); }
-    } else {
-      stopPhotoSong();
-      if (!songBus) playSong();
-    }
+      if (!startSong(songs[track], songLevel)) { track = 'bday'; playSong(); }
+    } else if (!songBus) playSong();
   }
 
   const musicBtn = $('#musicBtn');
@@ -257,15 +263,29 @@
      Background floaters
      ========================================================= */
   const floaters = $('#floaters');
-  for (let i = 0; i < 18; i++) {
+  // gently rising party emoji (sparkles weighted heaviest)
+  const FLOAT_EMOJI = ['✨', '✨', '✨', '🌟', '💫', '⭐', '🎈', '🎉', '🌸', '🎀', '🦋', '🧁', '💖', '💖'];
+  for (let i = 0; i < 16; i++) {
     const s = document.createElement('span');
     s.className = 'floater';
-    s.textContent = pick(['💖', '✨', '🌸', '💕', '⭐', '🎈']);
+    s.textContent = pick(FLOAT_EMOJI);
     s.style.left = rand(0, 100) + '%';
-    s.style.fontSize = rand(12, 26) + 'px';
-    s.style.animationDuration = rand(10, 20) + 's';
+    s.style.fontSize = rand(12, 24) + 'px';
+    s.style.animationDuration = rand(11, 20) + 's';
     s.style.animationDelay = -rand(0, 20) + 's';
     floaters.appendChild(s);
+  }
+  // twinkling sparkle "stars" scattered across the sky
+  for (let i = 0; i < 34; i++) {
+    const t = document.createElement('i');
+    t.className = 'spark' + (Math.random() < .3 ? ' star4' : '');
+    t.style.left = rand(0, 100) + '%';
+    t.style.top = rand(0, 100) + '%';
+    const z = rand(2, Math.random() < .3 ? 7 : 4);
+    t.style.width = t.style.height = z + 'px';
+    t.style.animationDuration = rand(1.8, 4) + 's';
+    t.style.animationDelay = -rand(0, 4) + 's';
+    floaters.appendChild(t);
   }
 
   /* =========================================================
