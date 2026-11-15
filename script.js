@@ -638,7 +638,7 @@
     '',
     'Today the whole world got a little brighter, because today is your day. 🌸',
     '',
-    'Thank you for every laugh, every silly face, and every ordinary moment you turn into something special just by being there.',
+    "Some people just make the world more fun, and you're definitely one of them. You're kind, a little crazy, full of life, and somehow you make even normal days feel special. Stay exactly like this!",
     '',
     'May this year bring you everything your heart wishes for, and a little extra. Keep smiling, keep shining, and never stop being exactly you.',
     '',
