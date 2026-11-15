@@ -161,11 +161,15 @@
      Each is routed through Web Audio so it can fade in/out (iPhone ignores audio.volume).
      A missing/broken file just falls back to the birthday tune. */
   const SONG_FILES = {
-    photos: 'music/photos-song.mp3',  // Nadaaniyan
-    finale: 'music/finale-song.mp3',  // Gallan Goodiyaan
+    opening: 'music/birthday-song.mp3', // instrumental Happy Birthday
+    photos: 'music/photos-song.mp3',    // Nadaaniyan
+    finale: 'music/finale-song.mp3',    // Gallan Goodiyaan
   };
   // which song + volume each screen wants; screens not listed use the music-box tune
   const SCENE_MUSIC = {
+    's-gift':   ['opening', .8],
+    's-wish':   ['opening', .8],
+    's-cake':   ['opening', .8],
     's-photos': ['photos', .9],
     's-letter': ['photos', .15], // same song, soft, while the letter is written
     's-final':  ['finale', .9],
@@ -252,6 +256,7 @@
   }
   async function preloadAll() {
     const steps = [
+      () => preloadSong(songs.opening), // needed first: plays the moment the box opens
       () => Promise.all([1, 2, 3].map((n) => preloadImage(photoSrc(n)))),
       () => preloadSong(songs.photos),
     ];
@@ -265,12 +270,14 @@
   }
 
   const musicBtn = $('#musicBtn');
-  function setMusic(on) {
+  // sceneId lets the very first start pick the right song while still inside the tap
+  // (iPhone only allows a song to start during a tap)
+  function setMusic(on, sceneId) {
     musicOn = on;
     stopBday();
     musicBtn.classList.toggle('playing', on);
     musicBtn.textContent = on ? '🎵' : '🔇';
-    applyMusic();
+    applyMusic(sceneId);
   }
   musicBtn.addEventListener('click', (e) => { e.stopPropagation(); setMusic(!musicOn); });
 
@@ -437,7 +444,7 @@
       return;
     }
 
-    if (!musicBtn.classList.contains('show')) { musicBtn.classList.add('show'); setMusic(true); }
+    if (!musicBtn.classList.contains('show')) { musicBtn.classList.add('show'); setMusic(true, 's-wish'); }
     gift.classList.add('open');
     giftStage.classList.add('open');
     giftHint.textContent = 'Ta-da! 🎉';
