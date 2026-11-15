@@ -136,8 +136,10 @@
   const BEAT = .4;
 
   let songBus = null; // each loop of the song gets its own bus so it can be cut instantly
+  let track = 'bday'; // which music the current screen wants: 'bday' | 'photos'
   function playSong() {
-    if (!musicOn || !audio()) return;
+    if (!musicOn || track !== 'bday' || !audio()) return;
+    if (songBus) songBus.disconnect();
     songBus = AC.createGain(); songBus.connect(master);
     let t = AC.currentTime + .1;
     for (const [n, d] of MELODY) {
@@ -150,14 +152,82 @@
     musicTimer = setTimeout(playSong, (total + 2) * 1000);
   }
 
+  function stopBday() {
+    clearTimeout(musicTimer);
+    if (songBus) { songBus.disconnect(); songBus = null; }
+  }
+
+  /* --- Song for the photos screen (music/photos-song.mp3) ---
+     Routed through Web Audio so it can fade in/out (iPhone ignores audio.volume). */
+  const PHOTO_SONG = 'music/photos-song.mp3';
+  const photoAudio = new Audio();
+  photoAudio.loop = true;
+  photoAudio.preload = 'none';
+  photoAudio.setAttribute('playsinline', '');
+  let photoGain = null, photoOk = true, photoFadeTimer = null;
+  photoAudio.addEventListener('error', () => {
+    photoOk = false; // missing/broken file: fall back to the birthday tune
+    photoAudio.pause();
+    if (track === 'photos' && musicOn) { track = 'bday'; playSong(); }
+  });
+  function photoNode() {
+    if (!photoGain && audio()) {
+      if (!photoAudio.src) photoAudio.src = PHOTO_SONG;
+      const src = AC.createMediaElementSource(photoAudio);
+      photoGain = AC.createGain(); photoGain.gain.value = 0;
+      src.connect(photoGain); photoGain.connect(master);
+    }
+    return photoGain;
+  }
+  function fadePhoto(to, secs) {
+    if (!photoGain) return;
+    const g = photoGain.gain, t = AC.currentTime;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(to, t + secs);
+  }
+  function startPhotoSong(level) {
+    if (!photoOk || !photoNode()) return false;
+    clearTimeout(photoFadeTimer);
+    if (photoAudio.paused) {
+      const p = photoAudio.play();
+      if (p && p.catch) p.catch(() => { if (track === 'photos' && musicOn) { track = 'bday'; playSong(); } });
+    }
+    fadePhoto(level, 1.5); // already playing? just glide to the new volume
+    return true;
+  }
+  function stopPhotoSong() {
+    if (!photoGain || photoAudio.paused) return;
+    fadePhoto(0, .8);
+    clearTimeout(photoFadeTimer);
+    photoFadeTimer = setTimeout(() => photoAudio.pause(), 850); // keeps its place for next visit
+  }
+
+  // pick the right music for a screen; called on every screen change and on mute/unmute
+  // song volume per screen: full on photos, soft background while the letter is written
+  const SONG_LEVEL = { 's-photos': .9, 's-letter': .15 };
+  let songLevel = .9;
+  function applyMusic(sceneId) {
+    if (sceneId) {
+      const lvl = SONG_LEVEL[sceneId];
+      track = (lvl && photoOk) ? 'photos' : 'bday';
+      if (lvl) songLevel = lvl;
+    }
+    if (!musicOn) { stopBday(); stopPhotoSong(); return; }
+    if (track === 'photos') {
+      stopBday();
+      if (!startPhotoSong(songLevel)) { track = 'bday'; playSong(); }
+    } else {
+      stopPhotoSong();
+      if (!songBus) playSong();
+    }
+  }
+
   const musicBtn = $('#musicBtn');
   function setMusic(on) {
     musicOn = on;
-    clearTimeout(musicTimer);
-    if (songBus) { songBus.disconnect(); songBus = null; }
+    stopBday();
     musicBtn.classList.toggle('playing', on);
     musicBtn.textContent = on ? '🎵' : '🔇';
-    if (on) playSong();
+    applyMusic();
   }
   musicBtn.addEventListener('click', (e) => { e.stopPropagation(); setMusic(!musicOn); });
 
@@ -204,23 +274,50 @@
   const scenes = $$('.scene');
   const dots = $('#dots');
   scenes.forEach(() => dots.appendChild(document.createElement('span')));
-  let cur = 0;
+  let cur = 0, maxSeen = 0;
+  const backBtn = $('#backBtn');
 
-  function go(n) {
+  // fromHistory: true when triggered by the browser/iPhone back gesture
+  function go(n, fromHistory = false) {
+    if (n === cur) return;
     scenes[cur].classList.remove('active');
     cur = n;
+    maxSeen = Math.max(maxSeen, cur);
     scenes[cur].classList.add('active');
-    $$('span', dots).forEach((d, i) => d.classList.toggle('on', i === cur));
+    $$('span', dots).forEach((d, i) => {
+      d.classList.toggle('on', i === cur);
+      d.classList.toggle('seen', i <= maxSeen);
+    });
+    backBtn.classList.toggle('show', cur > 0);
+    if (!fromHistory) try { history.pushState({ s: cur }, ''); } catch (_) {}
+    if (musicBtn.classList.contains('show')) applyMusic(scenes[cur].id);
     const hook = enter[scenes[cur].id];
     if (hook) hook();
   }
+  try { history.replaceState({ s: 0 }, ''); } catch (_) {}
+  window.addEventListener('popstate', (e) => {
+    const s = e.state && typeof e.state.s === 'number' ? e.state.s : 0;
+    go(Math.min(s, scenes.length - 1), true);
+  });
+  backBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (cur === 0) return;
+    // step back through the same history the iPhone back-swipe uses
+    if (history.state && typeof history.state.s === 'number' && history.state.s === cur && history.length > 1) history.back();
+    else go(cur - 1);
+  });
+  $$('span', dots).forEach((d, i) => d.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (i <= maxSeen) go(i);
+  }));
   $$('[data-next]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     go(Math.min(cur + 1, scenes.length - 1));
   }));
-  $$('span', dots)[0].classList.add('on');
+  $$('span', dots)[0].classList.add('on', 'seen');
 
   const enter = {
+    's-gift': () => { resetGift(); stopBalloons(); },
     's-wish': startBalloons,
     's-cake': resetCake,
     's-photos': buildStack,
@@ -366,6 +463,8 @@
     'Sunflowers & smiles',
     'Simply lovely',
     'Red lips, pink flower, all style',
+    'Sunglasses on, attitude on 😎',
+    'That little smile does magic ✨',
     'Never stop being you',
   ];
   // caption i belongs to photos/komo-(i+1).jpg
@@ -397,6 +496,9 @@
       const src = `photos/komo-${n}.jpg`;
       card.innerHTML = `<div class="ph" style="--bg:url('${src}')"><img src="${src}" alt="Komo photo ${idx + 1}" loading="${idx < 3 ? 'eager' : 'lazy'}" draggable="false"></div><p class="cap">${en}</p>`;
       const img = card.querySelector('img');
+      // where to anchor the crop (x% y%): faces sit high in most photos
+      const FOCUS = { 13: '50% 0%' };
+      img.style.objectPosition = FOCUS[idx + 1] || '50% 25%';
       const fit = () => { if (img.naturalWidth > img.naturalHeight) card.classList.add('wide'); };
       if (img.complete && img.naturalWidth) fit(); else img.addEventListener('load', fit);
       deck.unshift(card); // first photo ends on top
@@ -544,7 +646,6 @@
   });
   $('#replay').addEventListener('click', (e) => {
     e.stopPropagation();
-    resetGift();
     go(0);
   });
 })();

@@ -54,6 +54,23 @@ body {
   font-size: 20px; cursor: pointer; display: none;
 }
 .music-btn.show { display: block; }
+.back-btn {
+  position: fixed; top: calc(18px + env(safe-area-inset-top)); left: 16px; z-index: 60;
+  width: 32px; height: 32px; padding: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; color: #fff;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(rgba(60, 20, 70, .55), rgba(60, 20, 70, .55)) padding-box,
+    linear-gradient(135deg, var(--gold), var(--pink)) border-box;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+  opacity: 0; pointer-events: none; transform: translateX(-8px) scale(.8);
+  transition: opacity .35s, transform .35s cubic-bezier(.3, 1.6, .5, 1), box-shadow .2s;
+}
+.back-btn svg { width: 14px; height: 14px; margin-left: -1px; }
+.back-btn::after { content: ''; position: absolute; inset: -8px; } /* comfy tap area */
+.back-btn.show { opacity: 1; pointer-events: auto; transform: none; }
+.back-btn:active { transform: scale(.88); box-shadow: 0 0 16px rgba(255, 126, 182, .8); }
 .music-btn.playing { animation: spin 4s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -74,7 +91,7 @@ body {
 
 .hint { font-size: 15px; line-height: 1.5; opacity: .92; }
 .hint.small { font-size: 13px; }
-.top-hint { position: absolute; top: calc(28px + env(safe-area-inset-top)); left: 16px; right: 16px; }
+.top-hint { position: absolute; top: calc(28px + env(safe-area-inset-top)); left: 64px; right: 64px; }
 .pulse { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { transform: scale(1.06); opacity: .7; } }
 
@@ -96,7 +113,9 @@ body {
   position: fixed; bottom: calc(18px + env(safe-area-inset-bottom)); left: 0; right: 0;
   display: flex; justify-content: center; gap: 8px; z-index: 10;
 }
-.dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .3); transition: all .3s; }
+.dots span { position: relative; width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .3); transition: all .3s; }
+.dots span.seen { background: rgba(255, 255, 255, .7); cursor: pointer; }
+.dots span.seen::after { content: ''; position: absolute; inset: -14px -6px; } /* bigger tap area */
 .dots span.on { width: 22px; border-radius: 4px; background: var(--gold); }
 
 /* ---------- 0 · Gift ---------- */
@@ -343,11 +362,15 @@ body {
 #s-final { cursor: pointer; }
 .final-text { position: relative; z-index: 3; pointer-events: none; }
 .final-photo {
-  width: 150px; height: 150px; margin: 0 auto 16px; border-radius: 50%; padding: 5px;
-  background: conic-gradient(var(--gold), var(--pink), #9b6bff, var(--gold));
-  animation: spinGlow 6s linear infinite; box-shadow: 0 0 40px rgba(255, 126, 182, .6);
+  position: relative; width: 150px; height: 150px; margin: 0 auto 16px; border-radius: 50%; padding: 5px;
+  box-shadow: 0 0 40px rgba(255, 126, 182, .6);
 }
-.final-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; animation: spin 6s linear infinite reverse; }
+.final-photo::before { /* only the colourful ring spins */
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--gold), var(--pink), #9b6bff, var(--gold));
+  animation: spinGlow 4s linear infinite;
+}
+.final-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; border-radius: 50%; display: block; position: relative; }
 @keyframes spinGlow { to { transform: rotate(360deg); } }
 .title-sm { font-family: 'Pacifico', cursive; font-weight: 400; font-size: clamp(30px, 9vw, 52px); color: var(--gold); text-shadow: 0 3px 0 #b3245f; }
 .final-line { font-size: 17px; margin: 6px 0 16px; line-height: 1.6; }
