@@ -362,7 +362,13 @@ body {
   clip-path: polygon(0 0, 100% 0, 50% 100%);
   transform-origin: top; transition: transform .6s ease, z-index 0s .3s;
 }
-.env-heart { position: absolute; top: 74px; left: 50%; transform: translateX(-50%); z-index: 4; font-size: 30px; color: var(--gold); transition: opacity .3s; }
+.env-heart {
+  position: absolute; top: 64px; left: 50%; z-index: 4; transform: translateX(-50%);
+  font-size: 44px; line-height: 1;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .3));
+  animation: bowWiggle 2.4s ease-in-out infinite; transition: opacity .3s;
+}
+@keyframes bowWiggle { 0%, 100% { transform: translateX(-50%) rotate(0); } 50% { transform: translateX(-50%) rotate(-8deg) scale(1.06); } }
 .envelope.open { animation: none; }
 .envelope.open .env-flap { transform: rotateX(180deg); z-index: 0; }
 .envelope.open .env-heart { opacity: 0; }
