@@ -599,6 +599,8 @@
     'May this year bring you everything your heart wishes for, and a little extra. Keep smiling, keep shining, and never stop being exactly you.',
     '',
     'Happy Birthday! 🎂💖',
+    '',
+    '— Panda 🐼',
   ];
   const envelope = $('#envelope');
   const letter = $('#letter');
