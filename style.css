@@ -482,3 +482,17 @@ html[data-start="home"] .dots { display: none; }
 .home-card > *:nth-child(7) { animation-delay: .9s; }
 .home-music-hint { margin-top: 22px; opacity: .8; }
 .home-music-hint[hidden] { display: none; }
+
+/* Home: keep clear of the top edge / music button; compact on shorter phone screens */
+#s-home { padding-top: calc(64px + env(safe-area-inset-top)); padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+.home-card .hey { line-height: 1.25; }
+@media (max-height: 760px) {
+  #s-home { padding-top: calc(56px + env(safe-area-inset-top)); padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
+  .home-photo { width: 92px; height: 92px; margin-bottom: 8px; }
+  .home-card .hey { font-size: clamp(26px, 8vw, 34px); }
+  .home-card .sub { margin-top: 2px; font-size: 15px; }
+  .home-card .countdown { margin: 14px 0 18px; }
+  .home-main { padding: 13px 24px; }
+  .home-row { margin-top: 10px; }
+  .home-music-hint { margin-top: 14px; }
+}
