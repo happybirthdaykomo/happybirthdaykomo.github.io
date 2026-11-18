@@ -422,7 +422,8 @@ body {
 .home-card > *:nth-child(5) { animation-delay: .6s; }
 .home-card > *:nth-child(6) { animation-delay: .75s; }
 .home-photo { width: 124px; height: 124px; margin-bottom: 14px; }
-.home-card .hey { font-size: clamp(30px, 9vw, 42px); }
+.home-card .hey { font-size: clamp(34px, 10vw, 46px); }
+.home-card .sub { font-size: 18px; }
 .home-card .countdown { margin: 22px 0 26px; }
 .home-main {
   border: 0; border-radius: 999px; padding: 15px 28px; width: 100%; max-width: 300px;
@@ -481,7 +482,7 @@ html[data-start="home"] #s-home { opacity: 1; visibility: visible; transform: no
 html[data-start="home"] .dots { display: none; }
 .home-card > *:nth-child(7) { animation-delay: .9s; }
 .home-music-hint { margin-top: 22px; opacity: .8; }
-.home-music-hint[hidden] { display: none; }
+.home-music-hint[hidden] { display: block; visibility: hidden; } /* keep its space so nothing shifts when music starts */
 
 /* Home: keep clear of the top edge / music button; compact on shorter phone screens */
 #s-home { padding-top: calc(64px + env(safe-area-inset-top)); padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
@@ -489,8 +490,8 @@ html[data-start="home"] .dots { display: none; }
 @media (max-height: 760px) {
   #s-home { padding-top: calc(56px + env(safe-area-inset-top)); padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
   .home-photo { width: 92px; height: 92px; margin-bottom: 8px; }
-  .home-card .hey { font-size: clamp(26px, 8vw, 34px); }
-  .home-card .sub { margin-top: 2px; font-size: 15px; }
+  .home-card .hey { font-size: clamp(32px, 9.5vw, 40px); }
+  .home-card .sub { margin-top: 4px; font-size: 17px; }
   .home-card .countdown { margin: 14px 0 18px; }
   .home-main { padding: 13px 24px; }
   .home-row { margin-top: 10px; }
