@@ -167,6 +167,7 @@
   };
   // which song + volume each screen wants; screens not listed use the music-box tune
   const SCENE_MUSIC = {
+    's-home':   ['photos', .4],  // Nadaaniyan, soft, on the welcome-back screen
     's-gift':   ['opening', .8],
     's-wish':   ['opening', .8],
     's-cake':   ['opening', .8],
@@ -335,15 +336,45 @@
   /* =========================================================
      Scene navigation
      ========================================================= */
-  const scenes = $$('.scene');
+  const scenes = $$('.scene:not(#s-home)');
+  const home = $('#s-home');
   const dots = $('#dots');
   scenes.forEach(() => dots.appendChild(document.createElement('span')));
   let cur = 0, maxSeen = 0;
   const backBtn = $('#backBtn');
 
+  // Her birthday: 16 November (month is 0-based, 10 = November), in her phone's local time.
+  const BDAY_MONTH = 10, BDAY_DAY = 16;
+  function isBirthdayToday(now = new Date()) {
+    return now.getMonth() === BDAY_MONTH && now.getDate() === BDAY_DAY;
+  }
+  // On her birthday the full surprise plays from the box. Any other day she lands on a
+  // welcome-back home screen. Add ?surprise to the link to preview the birthday flow.
+  const homeMode = !isBirthdayToday() && !/[?&]surprise\b/.test(location.search);
+  let homeActive = false;
+
+  function showHome(fromHistory = false) {
+    if (homeActive) return;
+    scenes[cur].classList.remove('active');
+    home.classList.add('active');
+    homeActive = true;
+    dots.classList.add('hide');
+    backBtn.classList.remove('show');
+    stopBalloons();
+    clearTimeout(nudgeTimer);
+    if (!fromHistory) try { history.pushState({ s: -1 }, ''); } catch (_) {}
+    if (musicBtn.classList.contains('show')) applyMusic('s-home');
+    updateCountdown();
+  }
+
   // fromHistory: true when triggered by the browser/iPhone back gesture
   function go(n, fromHistory = false) {
-    if (n === cur) return;
+    if (n === cur && !homeActive) return;
+    if (homeActive) {
+      home.classList.remove('active');
+      homeActive = false;
+      dots.classList.remove('hide');
+    }
     scenes[cur].classList.remove('active');
     cur = n;
     maxSeen = Math.max(maxSeen, cur);
@@ -352,7 +383,7 @@
       d.classList.toggle('on', i === cur);
       d.classList.toggle('seen', i <= maxSeen);
     });
-    backBtn.classList.toggle('show', cur > 0);
+    backBtn.classList.toggle('show', cur > 0 || homeMode); // from the first screen, back = home
     if (!fromHistory) try { history.pushState({ s: cur }, ''); } catch (_) {}
     if (musicBtn.classList.contains('show')) applyMusic(scenes[cur].id);
     const hook = enter[scenes[cur].id];
@@ -375,14 +406,57 @@
   document.addEventListener('pointerdown', (e) => {
     if (!e.target.closest('[data-next]')) armNudge(); // any tap restarts the wait
   });
-  try { history.replaceState({ s: 0 }, ''); } catch (_) {}
+  if (homeMode) {
+    scenes[0].classList.remove('active');
+    home.classList.add('active');
+    homeActive = true;
+    dots.classList.add('hide');
+    try { history.replaceState({ s: -1 }, ''); } catch (_) {}
+  } else {
+    try { history.replaceState({ s: 0 }, ''); } catch (_) {}
+  }
+  // classes are in place now; drop the early first-screen hint from <head>
+  document.documentElement.removeAttribute('data-start');
   window.addEventListener('popstate', (e) => {
-    const s = e.state && typeof e.state.s === 'number' ? e.state.s : 0;
-    go(Math.min(s, scenes.length - 1), true);
+    const s = e.state && typeof e.state.s === 'number' ? e.state.s : (homeMode ? -1 : 0);
+    if (s < 0) showHome(true);
+    else go(Math.min(s, scenes.length - 1), true);
   });
+
+  // Home screen buttons: start the music within this tap (iPhone rule), then jump in
+  const homeMusicHint = $('#homeMusicHint');
+  function startMusicOnce(sceneId) {
+    if (musicBtn.classList.contains('show')) return;
+    audio();
+    musicBtn.classList.add('show');
+    homeMusicHint.hidden = true;
+    setMusic(true, sceneId);
+  }
+  function leaveHome(sceneId) {
+    const n = scenes.findIndex((sc) => sc.id === sceneId);
+    startMusicOnce(sceneId);
+    maxSeen = Math.max(maxSeen, n);
+    go(n);
+  }
+  // first tap anywhere on the home screen starts soft music (iPhone needs a tap first)
+  home.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    startMusicOnce('s-home');
+  });
+  $('#homeRelive').addEventListener('click', (e) => { e.stopPropagation(); leaveHome('s-gift'); });
+  $$('[data-jump]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    leaveHome(b.dataset.jump);
+  }));
+
   backBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (cur === 0) return;
+    if (cur === 0) {
+      if (!homeMode) return;
+      if (history.state && history.state.s === 0 && history.length > 1) history.back();
+      else showHome();
+      return;
+    }
     // step back through the same history the iPhone back-swipe uses
     if (history.state && typeof history.state.s === 'number' && history.state.s === cur && history.length > 1) history.back();
     else go(cur - 1);
@@ -405,6 +479,7 @@
     's-letter': resetLetter,
     's-final': () => {
       stopBalloons();
+      updateCountdown();
       setTimeout(() => { for (let i = 0; i < 4; i++) setTimeout(() => rocket(rand(W * .15, W * .85), rand(H * .12, H * .4)), i * 350); }, 600);
     },
   };
@@ -720,6 +795,45 @@
   });
 
   /* ---------- 5 · Finale ---------- */
+  // Countdown to her next birthday, shown on the home screen and the final screen.
+  const cdWidgets = $$('.countdown').map((w) => ({
+    label: $('.cd-label', w),
+    boxes: $('.cd-boxes', w),
+    els: { d: $('[data-cd="d"]', w), h: $('[data-cd="h"]', w), m: $('[data-cd="m"]', w), s: $('[data-cd="s"]', w) },
+  }));
+  function updateCountdown() {
+    const now = new Date();
+    const today = isBirthdayToday(now);
+    let vals = null;
+    if (!today) {
+      const y = now.getFullYear();
+      const thisYear = new Date(y, BDAY_MONTH, BDAY_DAY);
+      const next = now < thisYear ? thisYear : new Date(y + 1, BDAY_MONTH, BDAY_DAY);
+      const secs = Math.max(0, Math.floor((next - now) / 1000));
+      vals = {
+        d: Math.floor(secs / 86400),
+        h: Math.floor((secs % 86400) / 3600),
+        m: Math.floor((secs % 3600) / 60),
+        s: secs % 60,
+      };
+    }
+    for (const w of cdWidgets) {
+      w.boxes.hidden = today;
+      w.label.textContent = today ? "It's your birthday today! 🎉" : 'Next birthday in 🎂';
+      if (today) continue;
+      for (const k of Object.keys(vals)) {
+        const txt = k === 'd' ? String(vals[k]) : String(vals[k]).padStart(2, '0');
+        const el = w.els[k];
+        if (el.textContent !== txt) {
+          el.textContent = txt;
+          el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
+        }
+      }
+    }
+  }
+  updateCountdown();
+  setInterval(() => { if (homeActive || scenes[cur].id === 's-final') updateCountdown(); }, 1000);
+
   const finalScene = $('#s-final');
   finalScene.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;

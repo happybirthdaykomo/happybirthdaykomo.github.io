@@ -10,7 +10,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Kalam:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=1794766099" />
+  <link rel="stylesheet" href="style.css?v=1794980488" />
+  <script>
+    // Decide the first screen before anything is drawn, so the box never flashes on normal days.
+    // Must match isBirthdayToday() in script.js: 16 November, or ?surprise to preview.
+    (function () {
+      var d = new Date();
+      var bday = d.getMonth() === 10 && d.getDate() === 16;
+      if (!bday && !/[?&]surprise\b/.test(location.search)) document.documentElement.setAttribute('data-start', 'home');
+    })();
+  </script>
 </head>
 <body>
   <div class="bg-floaters" id="floaters" aria-hidden="true"></div>
@@ -18,6 +27,30 @@
 
   <button class="back-btn" id="backBtn" aria-label="Go back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
   <button class="music-btn" id="musicBtn" aria-label="Toggle music">🎵</button>
+
+  <!-- HOME · shown on any day except her birthday (she has already opened the surprise) -->
+  <section class="scene" id="s-home">
+    <div class="home-card">
+      <div class="final-photo home-photo"><img src="photos/komo-01.jpg" alt="Komo smiling" /></div>
+      <h1 class="hey">Welcome back, <span class="nowrap">Komo 👋</span></h1>
+      <p class="sub">Your birthday surprise is still here ✨</p>
+      <div class="countdown" aria-live="polite">
+        <p class="cd-label">Next birthday in 🎂</p>
+        <div class="cd-boxes">
+          <div class="cd-box"><b data-cd="d">--</b><span>days</span></div>
+          <div class="cd-box"><b data-cd="h">--</b><span>hrs</span></div>
+          <div class="cd-box"><b data-cd="m">--</b><span>min</span></div>
+          <div class="cd-box"><b data-cd="s">--</b><span>sec</span></div>
+        </div>
+      </div>
+      <button class="home-main" id="homeRelive">Relive your birthday 🎁</button>
+      <div class="home-row">
+        <button class="home-btn" data-jump="s-photos">📸 Photos</button>
+        <button class="home-btn" data-jump="s-letter">✉️ Letter</button>
+      </div>
+      <p class="hint small pulse home-music-hint" id="homeMusicHint">🔊 Tap anywhere for music</p>
+    </div>
+  </section>
 
   <!-- 0 · GIFT -->
   <section class="scene active" id="s-gift">
@@ -158,13 +191,21 @@
       <h1 class="title-sm">Happy Birthday, Komo!</h1>
       <p class="final-line">Keep smiling, always. 💖</p>
       <p class="hint small pulse">Tap anywhere for fireworks 🎆</p>
-      <p class="the-end">✨ The End ✨</p>
+      <div class="countdown" aria-live="polite">
+        <p class="cd-label">Next birthday in 🎂</p>
+        <div class="cd-boxes">
+          <div class="cd-box"><b data-cd="d">--</b><span>days</span></div>
+          <div class="cd-box"><b data-cd="h">--</b><span>hrs</span></div>
+          <div class="cd-box"><b data-cd="m">--</b><span>min</span></div>
+          <div class="cd-box"><b data-cd="s">--</b><span>sec</span></div>
+        </div>
+      </div>
     </div>
     <button class="replay" id="replay">↺ Replay</button>
   </section>
 
   <div class="dots" id="dots"></div>
 
-  <script src="script.js?v=1794766099"></script>
+  <script src="script.js?v=1794980488"></script>
 </body>
 </html>
